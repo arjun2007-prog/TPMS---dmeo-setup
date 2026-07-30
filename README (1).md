@@ -96,7 +96,6 @@ Set the following near the top of the sketch before flashing:
 const char* TS_API_KEY = "YOUR_THINGSPEAK_WRITE_KEY";
 const char* TS_HOST    = "api.thingspeak.com";
 ```
-> ⚠️ Do not commit real API keys to a public repository. Keep a local `secrets.h` (excluded via `.gitignore`) or replace before pushing.
 
 ### ThingSpeak field mapping
 | Field | Data |
@@ -143,12 +142,6 @@ No build step, no backend, no environment variables required.
 
 ---
 
-## Roadmap
-
-- [ ] Replace beacon simulator with physical TPMS sensor hardware
-- [ ] Resolve or route around A7672S TLS limitation for direct HTTPS upload
-- [ ] Extend to 4-wheel live monitoring
-- [ ] Add GPS location tagging (module supports it; not yet wired into this version)
 
 ---
 
