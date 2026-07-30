@@ -111,7 +111,8 @@ openocd -f interface/ch347.cfg -f target/nrf52.cfg -c "program _build/*.hex veri
 | GSM RESET | Pin 2 | A7672S RESET |
 
 ### Decode logic
-The BLE Minor value is split into two bytes:
+BLE Minor value is converted to 16 bit binary.
+The value is then split into two bytes:
 ```
 pressure_byte = high byte of Minor  →  pressure_kPa = pressure_byte × 2.5
 temperature_C = low byte of Minor − 40
@@ -150,18 +151,6 @@ Set these constants near the bottom of the file:
 const CHANNEL_ID = "YOUR_CHANNEL_ID";
 const READ_API_KEY = "YOUR_THINGSPEAK_READ_KEY";
 ```
-
-
-### Hosting
-This is a static file with no server dependency. Deploy via any static host:
-- Netlify Drop (drag-and-drop, instant URL)
-- GitHub Pages
-- Vercel
-
-No build step, no backend, no environment variables required.
-
----
-
 ## Notes / Known Limitations
 
 - **HTTP, not HTTPS, for cloud upload.** The A7672S module's current firmware (`A011B01A7672M7_F`) fails TLS handshakes (`+HTTPACTION: 0,715,0`) against modern cloud edges (Railway, Cloudflare-class TLS). ThingSpeak's plain-HTTP endpoint is used as a reliable workaround. A firmware update or a TLS-terminating proxy would be required to restore HTTPS support.
