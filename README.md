@@ -51,6 +51,33 @@ This file is designed to be dropped into an existing nRF5 SDK 17.1.0 example pro
 <nRF5_SDK_17.1.0>/examples/ble_central/ble_app_uart_c/<your_board_folder>/s132/armgcc/main.c
 ```
 
+**SoftDevice: S112 → S132.** The nRF52810 on the ISC_DEVKIT ships configured for the **S112** SoftDevice, which only supports the Peripheral BLE role. This project requires **BLE Central/Observer scanning**, which S112 does not support. **S132** must be flashed in its place — it supports both Central and Peripheral roles and is required for the scanning logic in `main.c` to function. Flash S132 before flashing this application:
+```bash
+nrfjprog --eraseall
+nrfjprog --program s132_nrf52_7.2.0_softdevice.hex --sectorerase
+```
+(Adjust the S132 hex filename/version to match the SoftDevice release bundled with SDK 17.1.0.)
+
+**Linker memory layout.** The nRF52810 has 192KB flash (0x30000) and 24KB RAM (0x6000) total. S132 reserves a larger portion of both than S112 for its own BLE stack, so the application's linker script (`<board>_gcc_nrf52.ld`) must place the `FLASH` and `RAM` regions *above* S132's reserved space rather than reusing the original S112-based boundaries from the example project. The values used in this project:
+
+```ld
+MEMORY
+{
+  FLASH (rx) : ORIGIN = 0x26000, LENGTH = 0xA000
+  RAM (rwx)  : ORIGIN = 0x20003400, LENGTH = 0x2C00
+}
+```
+
+- `FLASH ORIGIN = 0x26000` — start of application flash, immediately after S132's reserved flash region
+- `RAM ORIGIN = 0x20003400` — start of application RAM, set with headroom above S132's reserved RAM to avoid the application's variables overlapping SoftDevice-owned memory
+- `RAM LENGTH = 0x2C00` — sized so the region still ends at the chip's real RAM ceiling (`0x20006000`)
+
+These exact `ORIGIN`/`LENGTH` values are specific to this application's BLE configuration (Observer-only, no peripheral/connectable role, minimal GATT usage). If you change the BLE configuration (add peripheral role, more GATT services/characteristics, larger buffers, etc.), **recalculate the real RAM boundary S132 needs** via the value `nrf_sdh_ble_default_cfg_set()` reports at runtime, rather than reusing these numbers as-is. Confirm your build fits within the remaining space using:
+```bash
+make --print-memory-usage
+```
+Mismatched boundaries here will cause the application to silently corrupt its own memory or HardFault shortly after boot — this is the most common failure mode when porting BLE Central examples onto boards originally configured for S112.
+
 ### Build & Flash
 ```bash
 cd <path_to_your_example_folder>/armgcc
@@ -97,6 +124,7 @@ const char* TS_API_KEY = "YOUR_THINGSPEAK_WRITE_KEY";
 const char* TS_HOST    = "api.thingspeak.com";
 ```
 
+
 ### ThingSpeak field mapping
 | Field | Data |
 |---|---|
@@ -122,7 +150,7 @@ Set these constants near the bottom of the file:
 const CHANNEL_ID = "YOUR_CHANNEL_ID";
 const READ_API_KEY = "YOUR_THINGSPEAK_READ_KEY";
 ```
-> The Read API Key is safe to expose client-side — it only grants read access to a single public channel. Never place a **Write** key in frontend code.
+
 
 ### Hosting
 This is a static file with no server dependency. Deploy via any static host:
@@ -139,3 +167,4 @@ No build step, no backend, no environment variables required.
 - **HTTP, not HTTPS, for cloud upload.** The A7672S module's current firmware (`A011B01A7672M7_F`) fails TLS handshakes (`+HTTPACTION: 0,715,0`) against modern cloud edges (Railway, Cloudflare-class TLS). ThingSpeak's plain-HTTP endpoint is used as a reliable workaround. A firmware update or a TLS-terminating proxy would be required to restore HTTPS support.
 - **Simulated sensor input.** Pressure/temperature values currently originate from a BLE beacon simulator (phone app or a Python-based Windows advertiser script), not a physical MEMS pressure sensor. The decode pipeline is designed to accept real sensor hardware with no changes once available.
 - **Single active tire channel.** The dashboard and current wiring support one live sensor position; extending to four requires additional ThingSpeak fields (or channels) and corresponding dashboard panel wiring.
+
